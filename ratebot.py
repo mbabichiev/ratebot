@@ -13,11 +13,11 @@ yesterday_doll_st = f'{statictics}/yest_doll.txt'
 yesterday_euro_st = f'{statictics}/yest_euro.txt'
 db_dir = 'db/chats.db'
 
-mychat = 405172318
+mychat = 0
 
 text_to_change = 'Выберите'
 
-bot = telebot.TeleBot("5228468843:AAEAJVAvQrvf56dkhI9lYHBrpnvsbQe7IoA")
+bot = telebot.TeleBot("")
 
 
 def create_file_if_not_exist(name):
