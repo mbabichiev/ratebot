@@ -43,7 +43,6 @@ def write_in_file(name, text):
 
 
 def to_float(string):
-
     value = string.replace(',', '.')
     value = value.replace('\xa0', '') # non-breaking space 
     
@@ -52,7 +51,7 @@ def to_float(string):
 
 # the function which takes the data from the file, compares with current values and write in the file
 def write_max_values(current, file):
-
+    
     from_file = read_file(file)
 
     if from_file == '':
@@ -85,6 +84,7 @@ def write_min_values(current, file):
     if from_file == '':
         write_in_file(file, current)
     else:
+
         current = current.split('\n')
         from_file = from_file.split('\n')
 
