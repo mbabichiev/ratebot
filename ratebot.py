@@ -9,15 +9,21 @@ files = 'files'
 statictics = 'statictics'
 file_doll = f'{files}/doll.txt'
 file_euro = f'{files}/euro.txt'
+today_doll_st = f'{statictics}/st_doll.txt'
+today_euro_st = f'{statictics}/st_euro.txt'
 yesterday_doll_st = f'{statictics}/yest_doll.txt'
 yesterday_euro_st = f'{statictics}/yest_euro.txt'
+max_doll = statictics + '/max_doll.txt'
+min_doll = statictics + '/min_doll.txt'
+max_euro = statictics + '/max_euro.txt'
+min_euro = statictics + '/min_euro.txt'
 db_dir = 'db/chats.db'
 
 mychat = 0
 
 text_to_change = 'Выберите'
 
-bot = telebot.TeleBot("")
+bot = telebot.TeleBot("token")
 
 
 def create_file_if_not_exist(name):
@@ -170,6 +176,7 @@ def keyboard(message_id):
     kz = '🇰🇿'
     mdl = '🇲🇩'
     pln = '🇵🇱'
+    btk = '₿'
     
     if 'ukr' in s:
         ukr = ukr + '✅'
@@ -189,6 +196,9 @@ def keyboard(message_id):
     if 'pln' in s:
         pln = pln + '✅'
     
+    if 'btk' in s:
+        btk = btk + '✅'
+    
     markup = types.InlineKeyboardMarkup(row_width=3)
     btn1 = types.InlineKeyboardButton(ukr, callback_data='ukr')
     btn2 = types.InlineKeyboardButton(ru, callback_data='ru')
@@ -196,7 +206,8 @@ def keyboard(message_id):
     btn4 = types.InlineKeyboardButton(kz, callback_data='kz')
     btn5 = types.InlineKeyboardButton(mdl, callback_data='mdl')
     btn6 = types.InlineKeyboardButton(pln, callback_data='pln')
-    markup.add(btn1, btn2, btn3, btn4, btn5, btn6)
+    btn7 = types.InlineKeyboardButton(btk, callback_data='btk')
+    markup.add(btn1, btn2, btn3, btn4, btn5, btn6, btn7)
 
     return markup
 
@@ -243,7 +254,9 @@ def to_rus(mon):
 def compare(new, old, v):
     
     new = new.replace(',', '.')
+    new = new.replace('\xa0', '')
     old = old.replace(',', '.')
+    old = old.replace('\xa0', '')
     value = float(new) - float(old)
     value = float('{:.2f}'.format(value))
     c = str(value)
@@ -264,12 +277,22 @@ def compare(new, old, v):
     
     return ' (' + c + ' ' + v + ') ⏺'
 
+
 def send_message(message, text, keyboard):
 
     if (message.chat.id < 0):
-        bot.send_message(message.chat.id, text)
+        bot.send_message(message.chat.id, text, parse_mode="Markdown")
     else:
-        bot.send_message(message.chat.id, text, reply_markup=keyboard)
+        bot.send_message(message.chat.id, text, reply_markup=keyboard, parse_mode="Markdown")
+
+
+def min_max_statistics(min_doll, max_doll, min_euro, max_euro):
+
+    string = '_min / max\n$: ' + min_doll + ' / ' + max_doll + '\n' + \
+        '€: ' + min_euro + ' / ' + max_euro + '_\n\n'
+    
+    return string
+
 
 #######################################################################################################################################
 
@@ -288,7 +311,7 @@ def send_start(message):
     
     add_chat_in_db(message.chat.id)
     send_message(message, 'Здравствуйте, ' + message.from_user.first_name + '.\n\n/rate - узнать курс\n' + \
-                     '/setcountry - выбрать необходимую валюту (по умолчанию курсы "Гривна" и "Рубль")\n\n' + \
+                     '/setcountry - выбрать необходимую валюту (по умолчанию курсы *"Гривна"* и *"Рубль"*)\n\n' + \
                      '/help - другие команды', keystart())
 
 
@@ -350,6 +373,12 @@ def callback(call):
                 s = s.replace('pln', '')
             else:
                 s = s + 'pln'
+        
+        elif call.data == 'btk':
+            if 'btk' in s:
+                s = s.replace('btk', '')
+            else:
+                s = s + 'btk'
 
         update_db(call.message.chat.id, s)
         bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text = text_to_change + ' необxодимую валюту:', reply_markup=keyboard(call.message.chat.id), parse_mode='Markdown')
@@ -389,29 +418,43 @@ def send_text(message):
 
             s = take_data_from_db(message.chat.id)
 
+            max_doll_from_file = read_file(max_doll)
+            min_doll_from_file = read_file(min_doll)
+            max_euro_from_file = read_file(max_euro)
+            min_euro_from_file = read_file(min_euro)
+
+            max_doll_from_file = max_doll_from_file.split('\n')
+            min_doll_from_file = min_doll_from_file.split('\n')
+            max_euro_from_file = max_euro_from_file.split('\n')
+            min_euro_from_file = min_euro_from_file.split('\n')
+
             if 'ukr' in s:
-                ukr = 'Украина (UAH) 🇺🇦:\n\n1$ = ' + arr_doll[1] + ' ₴\n1€ = ' + arr_euro[1] + ' ₴\n\n'
+                ukr = '*Украина (UAH)* 🇺🇦:\n\n1$ = ' + arr_doll[1] + ' ₴\n1€ = ' + arr_euro[1] + ' ₴\n\n' + min_max_statistics(min_doll_from_file[1], max_doll_from_file[1], min_euro_from_file[1], max_euro_from_file[1])
+
                 rate_message = rate_message + ukr
 
             if 'ru' in s:
-                ru = 'Россия (RUB) 🇷🇺:\n\n1$ = ' + arr_doll[0] + ' ₽\n1€ = ' + arr_euro[0] + ' ₽\n\n'
+                ru = '*Россия (RUB)* 🇷🇺:\n\n1$ = ' + arr_doll[0] + ' ₽\n1€ = ' + arr_euro[0] + ' ₽\n\n' + min_max_statistics(min_doll_from_file[0], max_doll_from_file[0], min_euro_from_file[0], max_euro_from_file[0])
                 rate_message = rate_message + ru
 
             if 'by' in s:
-                by = 'Беларусь (BYN) 🇧🇾:\n\n1$ = ' + arr_doll[2] + ' Br\n1€ = ' + arr_euro[2] + ' Br\n\n'
+                by = '*Беларусь (BYN)* 🇧🇾:\n\n1$ = ' + arr_doll[2] + ' Br\n1€ = ' + arr_euro[2] + ' Br\n\n' + min_max_statistics(min_doll_from_file[2], max_doll_from_file[2], min_euro_from_file[2], max_euro_from_file[2])
                 rate_message = rate_message + by
 
             if 'kz' in s:
-                kz = 'Казахстан (KZT) 🇰🇿:\n\n1$ = ' + arr_doll[3] + ' ₸\n1€ = ' + arr_euro[3] + ' ₸\n\n'
+                kz = '*Казахстан (KZT)* 🇰🇿:\n\n1$ = ' + arr_doll[3] + ' ₸\n1€ = ' + arr_euro[3] + ' ₸\n\n' + min_max_statistics(min_doll_from_file[3], max_doll_from_file[3], min_euro_from_file[3], max_euro_from_file[3])
                 rate_message = rate_message + kz
             
             if 'mdl' in s:
-                mdl = 'Молдавия (MDL) 🇲🇩:\n\n1$ = ' + arr_doll[4] + ' L\n1€ = ' + arr_euro[4] + ' L\n\n'
+                mdl = '*Молдавия (MDL)* 🇲🇩:\n\n1$ = ' + arr_doll[4] + ' L\n1€ = ' + arr_euro[4] + ' L\n\n' + min_max_statistics(min_doll_from_file[4], max_doll_from_file[4], min_euro_from_file[4], max_euro_from_file[4])
                 rate_message = rate_message + mdl
             
             if 'pln' in s:
-                pln = 'Польша (PLN) 🇵🇱:\n\n1$ = ' + arr_doll[5] + ' zł\n1€ = ' + arr_euro[5] + ' zł\n\n'
+                pln = '*Польша (PLN)* 🇵🇱:\n\n1$ = ' + arr_doll[5] + ' zł\n1€ = ' + arr_euro[5] + ' zł\n\n' + min_max_statistics(min_doll_from_file[5], max_doll_from_file[5], min_euro_from_file[5], max_euro_from_file[5])
                 rate_message = rate_message + pln
+            
+            if 'btk' in s:
+                rate_message = rate_message + '*Bitcoin (BTK) ₿*:\n\n1₿ (BTK) = ' + arr_doll[6] + ' $ (USD)\n1₿ (BTK) = ' + arr_euro[6] + ' € (EUR)\n\n' + min_max_statistics(min_doll_from_file[6], max_doll_from_file[6], min_euro_from_file[6], max_euro_from_file[6])
 
             if rate_message == '':
                 bot.send_message(message.chat.id, text_to_change + ' необходимую валюту:', reply_markup=keyboard(message.chat.id))
@@ -424,7 +467,7 @@ def send_text(message):
                 if len(add) != 8:
                     add = t[4][:8]
 
-                rate_message = rate_message + 'Данные обновлены в ' + add + ' (МСК).'
+                rate_message = rate_message + '*Данные обновлены в ' + add + ' (МСК).*'
                 send_message(message, rate_message, keystart())
         #print(datetime.now() - start_time)
         bot.send_message(mychat, "Кто-то узнает курс")
@@ -453,31 +496,35 @@ def send_text(message):
         arr_doll = value_doll.split('\n')
         arr_euro = value_euro.split('\n')
 
+
         if 'ukr' in s:
-            ukr = 'Украина (UAH) 🇺🇦:\n\n1$ = ' + r_doll[2] + ' ₴' + compare(arr_doll[1], r_doll[2], '₴') + '\n1€ = ' + r_euro[2] + ' ₴' + compare(arr_euro[1], r_euro[2], '₴') + '\n\n'
+            ukr = '*Украина (UAH)* 🇺🇦:\n\n1$ = ' + r_doll[2] + ' ₴' + compare(arr_doll[1], r_doll[2], '₴') + '\n1€ = ' + r_euro[2] + ' ₴' + compare(arr_euro[1], r_euro[2], '₴') + '\n\n'
             ans = ans + ukr
 
         if 'ru' in s:
-            ru = 'Россия (RUB) 🇷🇺:\n\n1$ = ' + r_doll[1] + ' ₽' + compare(arr_doll[0], r_doll[1], '₽') + '\n1€ = ' + r_euro[1] + ' ₽' + compare(arr_euro[0], r_euro[1], '₽') + '\n\n'
+            ru = '*Россия (RUB)* 🇷🇺:\n\n1$ = ' + r_doll[1] + ' ₽' + compare(arr_doll[0], r_doll[1], '₽') + '\n1€ = ' + r_euro[1] + ' ₽' + compare(arr_euro[0], r_euro[1], '₽') + '\n\n'
             ans = ans + ru
 
         if 'by' in s:
-            by = 'Беларусь (BYN) 🇧🇾:\n\n1$ = ' + r_doll[3] + ' Br' + compare(arr_doll[2], r_doll[3], 'Br') + '\n1€ = ' + r_euro[3] + ' Br' + compare(arr_euro[2], r_euro[3], 'Br') + '\n\n'
+            by = '*Беларусь (BYN)* 🇧🇾:\n\n1$ = ' + r_doll[3] + ' Br' + compare(arr_doll[2], r_doll[3], 'Br') + '\n1€ = ' + r_euro[3] + ' Br' + compare(arr_euro[2], r_euro[3], 'Br') + '\n\n'
             ans = ans + by
 
         if 'kz' in s:
-            kz = 'Казахстан (KZT) 🇰🇿:\n\n1$ = ' + r_doll[4] + ' ₸' + compare(arr_doll[3], r_doll[4], '₸') + '\n1€ = ' + r_euro[4] + ' ₸' + compare(arr_euro[3], r_euro[4], '₸') + '\n\n'
+            kz = '*Казахстан (KZT)* 🇰🇿:\n\n1$ = ' + r_doll[4] + ' ₸' + compare(arr_doll[3], r_doll[4], '₸') + '\n1€ = ' + r_euro[4] + ' ₸' + compare(arr_euro[3], r_euro[4], '₸') + '\n\n'
             ans = ans + kz
         
         if 'mdl' in s:
             if len(r_doll) > 6:
-                mld = 'Молдавия (MDL) 🇲🇩:\n\n1$ = ' + r_doll[5] + ' L' + compare(arr_doll[4], r_doll[5], 'L') + '\n1€ = ' + r_euro[5] + ' L' + compare(arr_euro[4], r_euro[5], 'L') + '\n\n'
+                mld = '*Молдавия (MDL)* 🇲🇩:\n\n1$ = ' + r_doll[5] + ' L' + compare(arr_doll[4], r_doll[5], 'L') + '\n1€ = ' + r_euro[5] + ' L' + compare(arr_euro[4], r_euro[5], 'L') + '\n\n'
                 ans = ans + mld
 
         if 'pln' in s:
             if len(r_doll) > 7:
-                pln = 'Польша (PLN) 🇵🇱:\n\n1$ = ' + r_doll[6] + ' zł' + compare(arr_doll[5], r_doll[6], 'zł') + '\n1€ = ' + r_euro[6] + ' zł' + compare(arr_euro[5], r_euro[6], 'zł') + '\n\n'
+                pln = '*Польша (PLN)* 🇵🇱:\n\n1$ = ' + r_doll[6] + ' zł' + compare(arr_doll[5], r_doll[6], 'zł') + '\n1€ = ' + r_euro[6] + ' zł' + compare(arr_euro[5], r_euro[6], 'zł') + '\n\n'
                 ans = ans + pln
+
+        if 'btk' in s:
+            ans = ans + '*Bitcoin (BTK) ₿*:\n\n1₿ (BTK) = ' + r_doll[7] + ' $' +  compare(arr_doll[6], r_doll[7], '$') + '\n1₿ (BTK) = ' + r_euro[7] + ' €' + compare(arr_euro[6], r_euro[7], '€') + '\n\n'
 
         if(t[3] == ''): 
             bot.send_message(message.chat.id, 'Произошла ошибка. Попробуйте позжe')
@@ -493,7 +540,7 @@ def send_text(message):
                 if len(add) != 5:
                     add = t[4][:5]
                     
-                send_message(message, 'Курс доллара и евро ' + t[3] + ' ' + to_rus(t[1]) + ' в ' + add + ' (МСК) составил:\n\n' + ans, keystart())
+                send_message(message, 'Курс доллара и евро ' + t[2] + ' ' + to_rus(t[1]) + ' в ' + add + ' (МСК) составил:\n\n' + ans, keystart())
                 bot.send_message(mychat, 'Кто-то смотрит статистику')
         
 
@@ -534,13 +581,10 @@ def send_text(message):
         #    bot.send_message(mychat, 'Все пользователи получили сообщение')
         
     
-    elif message.text == '/count' and (message.from_user.username == 'StevenFoy' or message.from_user.username == 'alexeibab'):
+    elif message.text == '/count' and message.from_user.username == 'StevenFoy':
 
         bot.send_message(message.chat.id, 'Количество пользователей: ' + str(count_users_in_db()))
         bot.send_message(mychat, "@" + message.from_user.username + ' смотрит количество пользователей')
-    
-    elif message.text[:6] == '/lower':
-        bot.send_message(message.chat.id, message.text[6:].lower())
 
 
     s = take_data_from_db(message.chat.id)
@@ -557,15 +601,4 @@ def send_text(message):
         update_db(message.chat.id, s)
 
 
-@bot.message_handler(content_types=['photo'])
-def send_photo(message):
-    global mychat
-    bot.forward_message(mychat, message.chat.id, message.message_id)
 
-
-@bot.message_handler(content_types=['video'])
-def send_photo(message):
-    global mychat
-    bot.forward_message(mychat, message.chat.id, message.message_id) 
-
-bot.infinity_polling(timeout=10, long_polling_timeout = 5)
